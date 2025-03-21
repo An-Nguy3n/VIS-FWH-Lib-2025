@@ -1,0 +1,22 @@
+[
+    {
+        "num_worker": 1,
+        "worker_type": "GPU",
+        "timeout_per_task": 144000,
+        "warehouse_path": "D:/VIS-FWH-2025",
+        "folder_formula": "D:/VIS-F-Data-2025"
+    },
+
+    {
+        "data_path": "D:/VIS-FWH-Lib/DATA/HOSE_Field_2025_simulate.xlsx",
+        "generate_method": "HomogeneousPolynomial",
+        "filter": "DoubleYearThreshold",
+        "eval_index": 3,
+        "eval_threshold": 1.3,
+        "threshold_delta": 0.0,
+        "interest": 1.06,
+        "valuearg_threshold": 5e8,
+        "num_cycle": 11,
+        "temp_storage_size": 50000
+    }
+]
