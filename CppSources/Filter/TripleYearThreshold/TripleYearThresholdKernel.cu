@@ -7,34 +7,69 @@ const int __NUM_THRESHOLD_PER_CYCLE__ = 10;
 
 __device__ __forceinline__ void _triple_year_threshold_investing(double *weight, double threshold, int t_idx, double *result,
     double INTEREST, int *INDEX, double *PROFIT, int *SYMBOL, int *BOOL_ARG, int index_size, int num_cycle){
-    int reason = 0;
+    int reason;
     double Geo2 = 0, Har2 = 0;
     int start, end, end2, count, k, sym, s, rs_idx, s3, end3;
     double temp, n;
     bool check;
+
+    check = false;
+    start = INDEX[index_size - 3];
+    end = INDEX[index_size - 2];
+    end2 = INDEX[index_size - 1];
+    for (k=start; k<end; k++){
+        if (weight[k] > threshold){
+            check = true;
+            break;
+        }
+    }
+    if (!check) reason = 2;
+    else {
+        for (k=end; k<end2; k++){
+            if (weight[k] > threshold){
+                check = false;
+                break;
+            }
+        }
+        if (!check) reason = 0;
+        else reason = 1;
+    }
+
     for (int i=index_size-4; i>0; i--){
         start = INDEX[i];
         end = INDEX[i+1];
+        end2 = INDEX[i+2];
+        end3 = INDEX[i+3];
         temp = 0;
         count = 0;
         check = false;
-        if (!reason){
-            end2 = INDEX[i+2];
-            end3 = INDEX[i+3];
-            for (k=start; k<end; k++){
-                if (weight[k] > threshold && BOOL_ARG[k]){
-                    check = true;
+        for (k=start; k<end; k++){
+            if (weight[k] > threshold){
+                check = true;
+                if (!BOOL_ARG[k]) continue;
+
+                if (reason == 2){
+                    count ++;
+                    temp += PROFIT[k];
+                }
+                else {
                     sym = SYMBOL[k];
                     for (s=end; s<end2; s++){
                         if (SYMBOL[s] == sym){
                             if (weight[s] > threshold){
-                                for (s3=end2; s3<end3; s3++){
-                                    if (SYMBOL[s3] == sym){
-                                        if (weight[s3] > threshold){
-                                            count++;
-                                            temp += PROFIT[k];
+                                if (reason == 1){
+                                    count ++;
+                                    temp += PROFIT[k];
+                                }
+                                else {
+                                    for (s3=end2; s3<end3; s3++){
+                                        if (SYMBOL[s3] == sym){
+                                            if (weight[s3] > threshold){
+                                                count++;
+                                                temp += PROFIT[k];
+                                            }
+                                            break;
                                         }
-                                        break;
                                     }
                                 }
                             }
@@ -43,25 +78,21 @@ __device__ __forceinline__ void _triple_year_threshold_investing(double *weight,
                     }
                 }
             }
-        } else {
-            for (k=start; k<end; k++){
-                if (weight[k] > threshold && BOOL_ARG[k]){
-                    check = true;
-                    count++;
-                    temp += PROFIT[k];
-                }
-            }
         }
 
         if (!count){
             Geo2 += log(INTEREST);
             Har2 += 1.0 / INTEREST;
-            if (!check) reason = 1;
         } else {
             temp /= count;
             Geo2 += log(temp);
             Har2 += 1.0 / temp;
-            reason = 0;
+        }
+
+        if (!check) reason = 2;
+        else {
+            if (reason == 2) reason = 1;
+            else reason = 0;
         }
 
         if (i <= num_cycle && t_idx+1 >= i){
