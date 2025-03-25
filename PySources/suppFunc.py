@@ -6,6 +6,14 @@ filter_fields = {
         "fields": "ValGeo2;GeoNgn2;ValHar2;HarNgn2",
         "command": "DYT_filter_"
     },
+    "TripleYearThreshold": {
+        "fields": "ValGeo3;GeoNgn3;ValHar3;HarNgn3",
+        "command": "TYT_filter_"
+    },
+    "SingleYearThreshold": {
+        "fields": "ValGeo1;GeoNgn1;ValHar1;HarNgn1",
+        "command": "SYT_filter_"
+    }
 }
 
 
