@@ -61,6 +61,17 @@ class Base:
         self.drop_cols = drop_cols
         print("Cac cot khong duoc coi la bien:", self.drop_cols)
 
+        #
+        symbol_name = data["SYMBOL"].unique()
+        self.symbol_name = {symbol_name[i]:i for i in range(len(symbol_name))}
+        self.SYMBOL = np.array([self.symbol_name[s] for s in data["SYMBOL"]])
+        self.symbol_name = {v:k for k,v in self.symbol_name.items()}
+
+        data["SYMBOL_encoded"] = self.SYMBOL
+        data.sort_values(["TIME", "SYMBOL_encoded"], inplace=True, ascending=[False, True], ignore_index=True)
+        self.SYMBOL = data["SYMBOL_encoded"].to_numpy(np.int32)
+        data.drop(columns=["SYMBOL_encoded"], inplace=True)
+
         # Attrs
         self.data = data
         self.INTEREST = interest
@@ -68,11 +79,6 @@ class Base:
         self.PROFIT[self.PROFIT < 5e-324] = 5e-324
         self.VALUEARG = np.array(data["VALUEARG"], float)
         self.BOOL_ARG = self.VALUEARG >= valuearg_threshold
-
-        symbol_name = data["SYMBOL"].unique()
-        self.symbol_name = {symbol_name[i]:i for i in range(len(symbol_name))}
-        self.SYMBOL = np.array([self.symbol_name[s] for s in data["SYMBOL"]])
-        self.symbol_name = {v:k for k,v in self.symbol_name.items()}
 
         operand_data = data.drop(columns=drop_cols)
         operand_name = operand_data.columns

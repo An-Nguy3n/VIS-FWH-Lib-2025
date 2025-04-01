@@ -40,6 +40,19 @@ __global__ void fill_thresholds(double *weights, double *thresholds, int *INDEX,
 }
 
 
+__device__ __forceinline__ int binary_symbol_search(int *SYMBOL, int start, int end, int target){
+    int left = start, right = end-1;
+    int mid;
+    while (left <= right){
+        mid = left + (right - left) / 2;
+        if (SYMBOL[mid] == target) return mid;
+        if (SYMBOL[mid] < target) left = mid + 1;
+        else right = mid - 1;
+    }
+    return -1;
+}
+
+
 __device__ __forceinline__ void _double_year_threshold_investing(double *weight, double threshold, int t_idx, double *result,
     double INTEREST, int *INDEX, double *PROFIT, int *SYMBOL, int *BOOL_ARG, int index_size, int num_cycle){
     int reason;
@@ -62,34 +75,27 @@ __device__ __forceinline__ void _double_year_threshold_investing(double *weight,
     for (int i=index_size-3; i>0; i--){
         start = INDEX[i];
         end = INDEX[i+1];
+        end2 = INDEX[i+2];
         temp = 0;
         count = 0;
         check = false;
-        if (!reason){
-            end2 = INDEX[i+2];
-            for (k=start; k<end; k++){
-                if (weight[k] > threshold){
-                    check = true;
-                    if (!BOOL_ARG[k]) continue;
-                    sym = SYMBOL[k];
-                    for (s=end; s<end2; s++){
-                        if (SYMBOL[s] == sym){
-                            if (weight[s] > threshold){
-                                count++;
-                                temp += PROFIT[k];
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-        } else {
-            for (k=start; k<end; k++){
-                if (weight[k] > threshold){
-                    check = true;
-                    if (!BOOL_ARG[k]) continue;
+
+        for (k=start; k<end; k++){
+            if (weight[k] > threshold){
+                check = true;
+                if (!BOOL_ARG[k]) continue;
+
+                if (reason){
                     count++;
                     temp += PROFIT[k];
+                }
+                else {
+                    sym = SYMBOL[k];
+                    s = binary_symbol_search(SYMBOL, end, end2, sym);
+                    if (s != -1 && weight[s] > threshold){
+                        count++;
+                        temp += PROFIT[k];
+                    }
                 }
             }
         }

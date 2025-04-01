@@ -1,6 +1,5 @@
 #pragma once
 #include "TripleYearThresholdKernel.cu"
-#include "../DoubleYearThreshold/DoubleYearThresholdKernel.cu"
 #include "../../Generator/HomoPoly/CUDA/HomoPolyMethod.cu"
 
 

@@ -1,8 +1,9 @@
 #pragma once
+#include "../DoubleYearThreshold/DoubleYearThresholdKernel.cu"
 
 
-const int __NUM_THRESHOLD_PER_CYCLE__ = 10;
-#define _NUM_THRESHOLD_PER_CYCLE_
+// const int __NUM_THRESHOLD_PER_CYCLE__ = 10;
+// #define _NUM_THRESHOLD_PER_CYCLE_
 
 
 __device__ __forceinline__ void _triple_year_threshold_investing(double *weight, double threshold, int t_idx, double *result,
@@ -54,26 +55,18 @@ __device__ __forceinline__ void _triple_year_threshold_investing(double *weight,
                 }
                 else {
                     sym = SYMBOL[k];
-                    for (s=end; s<end2; s++){
-                        if (SYMBOL[s] == sym){
-                            if (weight[s] > threshold){
-                                if (reason == 1){
-                                    count ++;
-                                    temp += PROFIT[k];
-                                }
-                                else {
-                                    for (s3=end2; s3<end3; s3++){
-                                        if (SYMBOL[s3] == sym){
-                                            if (weight[s3] > threshold){
-                                                count++;
-                                                temp += PROFIT[k];
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
+                    s = binary_symbol_search(SYMBOL, end, end2, sym);
+                    if (s != -1 && weight[s] > threshold){
+                        if (reason == 1){
+                            count++;
+                            temp += PROFIT[k];
+                        }
+                        else {
+                            s3 = binary_symbol_search(SYMBOL, end2, end3, sym);
+                            if (s3 != -1 && weight[s3] > threshold){
+                                count++;
+                                temp += PROFIT[k];
                             }
-                            break;
                         }
                     }
                 }
