@@ -3,121 +3,105 @@ import numpy as np
 import numba as nb
 
 
+def check_required_cols(data: pd.DataFrame, required_cols: set):
+    missing_cols = required_cols - set(data.columns)
+    assert not missing_cols
+
+
+def check_column_dtypes(data: pd.DataFrame, expected_dtypes: dict):
+    for col, expected_dtype in expected_dtypes.items():
+        if isinstance(expected_dtype, list):
+            assert data[col].dtype in expected_dtype
+        else:
+            assert data[col].dtype == expected_dtype
+
+
 class Base:
-    def __init__(
-            self,
-            data: pd.DataFrame,
-            interest: float,
-            valuearg_threshold: float
-    ) -> None:
-        '''
-        Các cột bắt buộc phải có trong data: TIME, PROFIT, SYMBOL, VALUEARG.
-        Các cột còn lại mà có kiểu dữ liệu là int64 hoặc float64 được coi là biến để sinh công thức.
-        '''
-        data = data.reset_index(drop=True)
-        data.fillna(0.0, inplace=True)
+    def __init__(self, data: pd.DataFrame, interest: float, valuearg_threshold: float):
+        data = data.reset_index(drop=True).fillna(0.0)
 
-        # Check cac cot bat buoc
-        drop_cols = ["TIME", "PROFIT", "SYMBOL", "VALUEARG"]
-        for col in drop_cols:
-            if col not in data.columns:
-                raise Exception(f"Thieu cot {col}")
+        # Check các cột bắt buộc
+        dropped_cols = {"TIME", "PROFIT", "SYMBOL", "VALUEARG"}
+        check_required_cols(data, dropped_cols)
 
-        # Check dtype cua TIME, PROFIT va VALUEARG
-        if data["TIME"].dtype != "int64":
-            raise Exception("TIME's dtype must be int64")
-        if data["PROFIT"].dtype != "float64":
-            raise Exception("PROFIT's dtype must be float64")
-        if data["VALUEARG"].dtype not in ["int64", "float64"]:
-            raise Exception("VALUEARG's dtype must be int64 or float64")
+        # Check dtypes
+        check_column_dtypes(data, {"TIME": "int64",
+                                   "PROFIT": "float64",
+                                   "VALUEARG": ["int64", "float64"]})
 
-        # Check thu tu cot TIME va min PROFIT, min VALUEARG
-        if data["TIME"].diff().max() > 0:
-            raise Exception("Cot TIME phai giam dan")
-        if data["PROFIT"].min() < 0.0:
-            raise Exception("PROFIT < 0.0")
-        if data["VALUEARG"].min() < 0.0:
-            raise Exception("VALUEARG < 0.0")
+        # Cột TIME phải giảm dần, PROFIT & VALUE không âm
+        assert data["TIME"].is_monotonic_decreasing
+        assert (data["PROFIT"] >= 0.0).all()
+        assert (data["VALUEARG"] >= 0.0).all()
 
-        # INDEX
-        index = []
-        temp = data["TIME"].unique()
-        for i in range(temp.max(), temp.min()-1, -1):
-            if i not in temp: raise Exception(f"Thieu chu ky {i}")
-            index.append(data[data["TIME"]==i].index[0])
-        self.INDEX = np.array(index + [data.shape[0]])
+        # Check các chu kỳ trong INDEX, lập INDEX
+        unique_times = data["TIME"].unique()
+        assert np.array_equal(
+            np.arange(data["TIME"].max(), data["TIME"].min()-1, -1, dtype=int),
+            unique_times
+        )
+        self.INDEX = np.searchsorted(-data["TIME"], -unique_times, side="left")
+        self.INDEX = np.append(self.INDEX, data.shape[0])
 
-        # Check SYMBOL co unique trong tung chu ky hay khong
-        for i in range(self.INDEX.shape[0] - 1):
-            start, end = self.INDEX[i], self.INDEX[i+1]
-            if len(data.loc[start:end-1, "SYMBOL"].unique()) != (end - start):
-                raise Exception("SYMBOL khong unique o tung chu ky")
+        # Check SYMBOL có unique ở mỗi chu kỳ hay không
+        assert np.array_equal(
+            data.groupby("TIME", sort=False)["SYMBOL"].nunique().values,
+            np.diff(self.INDEX)
+        )
 
-        # Loai cac cot co kieu du lieu khong phai int64 va float64
-        for col in data.columns:
-            if col not in drop_cols and data[col].dtype not in ["int64", "float64"]:
-                drop_cols.append(col)
+        # Loại bỏ các cột có kiểu dữ liệu không phải là int64 hoặc float64
+        dropped_cols.update(data.select_dtypes(exclude=["int64", "float64"]).columns)
+        self.dropped_cols = dropped_cols
+        print("Các cột không được coi là biến chạy:", dropped_cols)
 
-        self.drop_cols = drop_cols
-        print("Cac cot khong duoc coi la bien:", self.drop_cols)
+        # Mã hoá SYMBOL thành số nguyên
+        unique_symbols, inverse = np.unique(data["SYMBOL"], return_inverse=True)
+        self.symbol_name = dict(enumerate(unique_symbols))
 
-        #
-        symbol_name = data["SYMBOL"].unique()
-        self.symbol_name = {symbol_name[i]:i for i in range(len(symbol_name))}
-        self.SYMBOL = np.array([self.symbol_name[s] for s in data["SYMBOL"]])
-        self.symbol_name = {v:k for k,v in self.symbol_name.items()}
-
-        data["SYMBOL_encoded"] = self.SYMBOL
+        data["SYMBOL_encoded"] = inverse
         data.sort_values(["TIME", "SYMBOL_encoded"], inplace=True, ascending=[False, True], ignore_index=True)
-        self.SYMBOL = data["SYMBOL_encoded"].to_numpy(np.int32)
+        self.SYMBOL = data["SYMBOL_encoded"].to_numpy(int)
         data.drop(columns=["SYMBOL_encoded"], inplace=True)
 
-        # Attrs
+        # Các thuộc tính
         self.data = data
         self.INTEREST = interest
-        self.PROFIT = np.array(data["PROFIT"], float)
-        self.PROFIT[self.PROFIT < 5e-324] = 5e-324
-        self.VALUEARG = np.array(data["VALUEARG"], float)
+        self.PROFIT = np.array(np.maximum(data["PROFIT"], 5e-324))
+        self.VALUEARG = data["VALUEARG"].to_numpy(float)
         self.BOOL_ARG = self.VALUEARG >= valuearg_threshold
 
-        operand_data = data.drop(columns=drop_cols)
-        operand_name = operand_data.columns
-        self.operand_name = {i:operand_name[i] for i in range(len(operand_name))}
-        self.OPERAND = np.transpose(np.array(operand_data, float))
+        operand_data = data.drop(columns=dropped_cols)
+        self.OPERAND = operand_data.to_numpy(float).transpose()
+        self.operand_name = dict(enumerate(operand_data.columns))
 
 
 @nb.njit
-def calculate_formula(formula, operand):
+def calculate_formula(formula, operand, temp_1):
     temp_0 = np.zeros(operand.shape[1])
-    temp_1 = np.zeros(operand.shape[1])
     temp_op = -1
-    num_operand = operand.shape[0]
     for i in range(1, formula.shape[0], 2):
-        if formula[i] >= num_operand: raise
-
         if formula[i-1] < 2:
             temp_op = formula[i-1]
-            temp_1 = operand[formula[i]].copy()
+            temp_1[:] = operand[formula[i]]
         else:
             if formula[i-1] == 2:
-                temp_1 *= operand[formula[i]]
+                temp_1[:] *= operand[formula[i]]
             else:
-                temp_1 /= operand[formula[i]]
+                temp_1[:] /= operand[formula[i]]
 
         if i+1 == formula.shape[0] or formula[i+1] < 2:
             if temp_op == 0:
-                temp_0 += temp_1
+                temp_0[:] += temp_1
             else:
-                temp_0 -= temp_1
+                temp_0[:] -= temp_1
 
-    temp_0[np.isnan(temp_0)] = -1.7976931348623157e+308
-    temp_0[np.isinf(temp_0)] = -1.7976931348623157e+308
+    temp_0[np.isnan(temp_0) | np.isinf(temp_0)] = -1.7976931348623157e+308
     return temp_0
 
 
 @nb.njit
 def decode_formula(f, len_):
-    rs = np.zeros(len(f)*2, dtype=np.int64)
+    rs = np.zeros(f.shape[0]*2, dtype=np.int64)
     rs[0::2] = f // len_
     rs[1::2] = f % len_
     return rs
