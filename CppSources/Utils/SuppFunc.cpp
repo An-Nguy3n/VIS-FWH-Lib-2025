@@ -19,7 +19,8 @@ bool* get_valid_operator(int **f_struct, int idx, int start){
         if (i < start-2) valid[i] = 0;
         else valid[i] = 1;
     }
-    if (idx/2 <= (f_struct[0][1]-1)/2) valid[1] = 0;
+    // if (idx/2 <= (f_struct[0][1]-1)/2) valid[1] = 0;
+    if (idx/2 <= f_struct[0][1]/2) valid[1] = 0;
     return valid;
 }
 
