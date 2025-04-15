@@ -21,6 +21,9 @@ generate_method = {
     "HomogeneousPolynomial": {
         "command": "HP_method_"
     },
+    "HomogeneousPolynomial": {
+        "command": "HP_v2_"
+    },
 }
 
 
