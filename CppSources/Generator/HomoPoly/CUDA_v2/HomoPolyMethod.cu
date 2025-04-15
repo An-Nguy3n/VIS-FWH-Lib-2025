@@ -35,7 +35,7 @@ public:
 
     bool fill_formula(uint8_t *formula, int **f_struct, int idx,
         double *temp_0, int temp_op, double *temp_1,
-        int mode, bool add_sub, bool mul_div
+        int mode, bool add_sub, bool mul_div, int fml_deg
     );
 
     virtual bool compute_result(bool force_save);
@@ -127,7 +127,8 @@ bool Generator::fill_formula(
     double *temp_1,
     int mode,
     bool add_sub,
-    bool mul_div
+    bool mul_div,
+    int fml_deg
 ) {
     if (!mode) /*Sinh dau cong tru*/ {
         int gr_idx = 2147483647, start = 0, i, k;
@@ -162,7 +163,7 @@ bool Generator::fill_formula(
             } else new_add_sub = false;
 
             if (fill_formula(new_formula, new_f_struct, idx+1,
-                            temp_0, temp_op, temp_1, 1, new_add_sub, mul_div)) return true;
+                            temp_0, temp_op, temp_1, 1, new_add_sub, mul_div, fml_deg)) return true;
         }
 
         // Giai phong bo nho
@@ -188,14 +189,20 @@ bool Generator::fill_formula(
             memcpy(new_formula, formula, fml_shape);
             for (i=0; i<groups; i++) memcpy(new_f_struct[i], f_struct[i], 16);
             new_formula[idx] = k + 2;
+            int new_fml_deg = fml_deg;
             if (k == 1){
+                new_fml_deg -= 1;
                 new_mul_div = true;
-                for (i=idx+2; i<2*new_f_struct[0][1]-1; i+=2) new_formula[i] = 3;
+                for (i=idx+2; i<2*new_f_struct[0][1]-1; i+=2){
+                    new_formula[i] = 3;
+                    new_fml_deg -= 1;
+                }
                 for (i=1; i<groups; i++){
                     for (j=0; j<new_f_struct[0][1]-1; j++)
                         new_formula[new_f_struct[i][2] + 2*j + 1] = new_formula[2 + 2*j];
                 }
             } else {
+                new_fml_deg += 1;
                 new_mul_div = false;
                 for (i=0; i<groups; i++) new_f_struct[i][3] += 1;
                 if (idx == 2*new_f_struct[0][1]-2){
@@ -208,7 +215,7 @@ bool Generator::fill_formula(
             }
 
             if (fill_formula(new_formula, new_f_struct, idx+1,
-                            temp_0, temp_op, temp_1, 1, add_sub, new_mul_div)) return true;
+                            temp_0, temp_op, temp_1, 1, add_sub, new_mul_div, new_fml_deg)) return true;
         }
 
         // Giai phong bo nho
@@ -273,7 +280,7 @@ bool Generator::fill_formula(
                 temp_0_change = true;
                 cudaMalloc((void**)&new_temp_0, 8*count*rows);
                 if (num_per_grp != 1){
-                    update_last_weight<<<num_block, 256>>>(new_temp_0, temp_0, new_temp_1, rows, count, !temp_op_new);
+                    update_last_weight<<<num_block, 256>>>(new_temp_0, temp_0, new_temp_1, rows, count, !temp_op_new, fml_deg);
                 } else {
                     update_last_weight_through_operands<<<num_block, 256>>>(
                         new_temp_0, temp_0, OPERAND, d_valid, rows, count, !temp_op_new
@@ -306,24 +313,24 @@ bool Generator::fill_formula(
                         for (i=0; i<count; i++)
                             if (fill_formula(new_formula[i], f_struct, new_idx,
                                             new_temp_0+i*rows, temp_op_new, new_temp_1+i*rows,
-                                            new_mode, add_sub, mul_div)) return true;
+                                            new_mode, add_sub, mul_div, fml_deg)) return true;
                     } else {
                         for (i=0; i<count; i++)
                             if (fill_formula(new_formula[i], f_struct, new_idx,
                                             new_temp_0+i*rows, temp_op_new, temp_1,
-                                            new_mode, add_sub, mul_div)) return true;
+                                            new_mode, add_sub, mul_div, fml_deg)) return true;
                     }
                 } else {
                     if (num_per_grp != 1){
                         for (i=0; i<count; i++)
                             if (fill_formula(new_formula[i], f_struct, new_idx,
                                             temp_0, temp_op_new, new_temp_1+i*rows,
-                                            new_mode, add_sub, mul_div)) return true;
+                                            new_mode, add_sub, mul_div, fml_deg)) return true;
                     } else {
                         for (i=0; i<count; i++)
                             if (fill_formula(new_formula[i], f_struct, new_idx,
                                             temp_0, temp_op_new, temp_1,
-                                            new_mode, add_sub, mul_div)) return true;
+                                            new_mode, add_sub, mul_div, fml_deg)) return true;
                     }
                 }
             }
@@ -431,7 +438,7 @@ void Generator::run(){
             else {
                 for (i=0; i<fml_shape; i++) current[0][i] = 0;
             }
-            if (fill_formula(formula, f_struct, 0, temp_0, 0, temp_1, 0, false, false)) return;
+            if (fill_formula(formula, f_struct, 0, temp_0, 0, temp_1, 0, false, false, 1)) return;
             replace_nan_and_inf<<<count_temp_storage*rows/256 + 1, 256>>>(
                 temp_weight_storage, rows, count_temp_storage
             );

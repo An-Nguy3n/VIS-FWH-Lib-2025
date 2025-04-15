@@ -1,6 +1,7 @@
 #pragma once
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
+#include <math.h>
 
 
 __device__ const double __NEGATIVE_INFINITY__ = -1.7976931348623157e+308;
@@ -36,12 +37,22 @@ __global__ void update_temp_weight(double *temp_weight_new, double *temp_weight_
 };
 
 
-__global__ void update_last_weight(double *last_weight, double *curr_weight, double *temp_weight, int length, int numOpr, bool isAdd){
+__device__ double safe_root(double x, int deg) {
+    if (x < 0.0) {
+        if (deg % 2 == 0) return 0.0;
+        else return -pow(-x, 1.0 / deg);
+    }
+    return pow(x, 1.0 / deg);
+}
+
+
+__global__ void update_last_weight(double *last_weight, double *curr_weight, double *temp_weight, int length, int numOpr, bool isAdd, int fml_deg){
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index < numOpr*length){
         int j = index % length;
-        if (isAdd) last_weight[index] = curr_weight[j] + temp_weight[index];
-        else last_weight[index] = curr_weight[j] - temp_weight[index];
+        double val = safe_root(temp_weight[index], fml_deg);
+        if (isAdd) last_weight[index] = curr_weight[j] + val;
+        else last_weight[index] = curr_weight[j] - val;
     }
 };
 

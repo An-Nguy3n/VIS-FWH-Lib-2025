@@ -1,5 +1,5 @@
 #pragma once
-#include "../../Generator/HomoPoly/CUDA/HomoPolyMethod.cu"
+#include "../../Generator/HomoPoly/CUDA_v2/HomoPolyMethod.cu"
 
 
 #ifndef _NUM_THRESHOLD_PER_CYCLE_
