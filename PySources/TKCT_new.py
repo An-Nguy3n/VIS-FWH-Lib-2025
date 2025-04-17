@@ -2,7 +2,7 @@ import numpy as np
 import numba as nb
 import sqlite3
 from tqdm import tqdm
-from PySources.base import Base, calculate_formula, decode_formula, convert_arrF_to_strF
+from PySources.base import Base, calculate_formula, decode_formula, convert_arrF_to_strF, calculate_formula_v2
 
 
 __NUM_THRESHOLD_PER_CYCLE__ = 10
@@ -278,11 +278,23 @@ def TripleYear_Har_Invest(
     return list_invest
 
 
-def get_info_invest(vis: Base, ct_):
+def get_info_invest(vis: Base, ct_, eval_method: str, temp_1: np.ndarray, exclude_threshold=2e-6):
+    """
+    Parameters
+    ----------
+    vis : class Base
+    eval_method : {'classic', 'root'} optional
+    temp_1 : array float64 (size = vis.OPERAND.shape[1])
+    exclude_threshold : float (func will return None if max(weight) - min(weight) <= exclude_threshold)
+    """
     ct = list(map(int, ct_.split("_")))
     ct = decode_formula(np.array(ct), vis.OPERAND.shape[0])
-    weight = calculate_formula(ct, vis.OPERAND)
-    if abs(weight.max() - weight.min()) <= 2e-6:
+    if eval_method == "classic":
+        weight = calculate_formula(ct, vis.OPERAND, temp_1)
+    elif eval_method == "root":
+        weight = calculate_formula_v2(ct, vis.OPERAND, temp_1)
+    else: raise
+    if abs(weight.max() - weight.min()) <= exclude_threshold:
         return None
     Val1, Har1, Val2, Har2, Val3, Har3 = MixedSingleDoubleTriple(
         weight, vis.INDEX, vis.PROFIT, vis.SYMBOL, vis.INTEREST, vis.BOOL_ARG
@@ -332,13 +344,14 @@ def compare(A, B):
     return a - b
 
 
-def filter(vis: Base, DB_PATH, NAM_ID, target, rate, FOLDER_SAVE, critical_col, add_after_filename=""):
+def filter(vis: Base, DB_PATH, NAM_ID, target, rate, FOLDER_SAVE, critical_col, eval_method: str, exclude_threshold=2e-6, add_after_filename=""):
     connect = sqlite3.connect(DB_PATH)
     cursor = connect.cursor()
 
     cursor.execute(f"SELECT count(*) FROM T{NAM_ID};")
     num_rows = cursor.fetchall()[0][0]
-    temp_info = get_info_invest(vis, "+0")
+    temp_1 = np.empty(vis.OPERAND.shape[1], np.float64)
+    temp_info = get_info_invest(vis, "+0", eval_method, temp_1, 0.0)
     total = len(temp_info[1])
 
     threshold = total * rate
@@ -348,7 +361,7 @@ def filter(vis: Base, DB_PATH, NAM_ID, target, rate, FOLDER_SAVE, critical_col, 
         for i in range(num_rows):
             temp = cursor.fetchone()
             ct = temp[1]
-            info = get_info_invest(vis, ct)
+            info = get_info_invest(vis, ct, eval_method, temp_1, exclude_threshold)
             if info is None:
                 pbar.update(1)
                 continue
