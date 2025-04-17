@@ -3,7 +3,7 @@ from PySources.base import Base, pd, np, calculate_formula, calculate_formula_v2
 
 
 def get_info_invest(data: pd.DataFrame, interest: float, valuearg_threshold: float,
-                    eval_method: str, list_formula: list[str]):
+                    eval_method: str, list_formula: list[str], exclude_threshold=2e-6):
     """
     Parameters
     ----------
@@ -23,7 +23,7 @@ def get_info_invest(data: pd.DataFrame, interest: float, valuearg_threshold: flo
             weight = calculate_formula(ct, vis.OPERAND, temp_1)
         else:
             weight = calculate_formula_v2(ct, vis.OPERAND, temp_1)
-        if abs(weight.max() - weight.min()) <= 2e-6:
+        if abs(weight.max() - weight.min()) <= exclude_threshold:
             list_result.append({
                 "Note": "Value có giá trị tuyệt đối quá nhỏ"
             })
