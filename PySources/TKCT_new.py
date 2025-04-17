@@ -344,7 +344,9 @@ def compare(A, B):
     return a - b
 
 
-def filter(vis: Base, DB_PATH, NAM_ID, target, rate, FOLDER_SAVE, critical_col, eval_method: str, exclude_threshold=2e-6, add_after_filename=""):
+def filter(vis: Base,
+           DB_PATH, NAM_ID, target, rate, FOLDER_SAVE, critical_col,
+           eval_method: str, exclude_threshold=2e-6, add_after_filename=""):
     connect = sqlite3.connect(DB_PATH)
     cursor = connect.cursor()
 
