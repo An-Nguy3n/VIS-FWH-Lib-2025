@@ -53,7 +53,7 @@ if __name__ == "__main__":
     assert worker_type in ["GPU", "CPU", "Hybrid"]
     assert timeout_per_task >= 1
     assert not (num_worker == 1 and worker_type == "Hybrid")
-    assert not (num_worker == 3 and worker_type == "GPU")
+    # assert not (num_worker == 3 and worker_type == "GPU")
     assert not (num_worker != 1 and worker_type == "CPU")
 
     lib_abs_path = __file__.replace("main.py", "")
@@ -172,7 +172,7 @@ if __name__ == "__main__":
         else:
             list_worker_type = ["GPU", "GPU"]
     else:
-        list_worker_type = ["GPU", "GPU", "CPU"]
+        list_worker_type = ["GPU", "GPU", "GPU"]
 
     n = len(list_config_path)
     while True:
