@@ -1,4 +1,4 @@
-from PySources.TKCT_new import MixedSingleDoubleTriple, SingleYear_Har_Invest, DoubleYear_Har_Invest, TripleYear_Har_Invest
+from TKCT.TKCT_new import MixedSingleDoubleTriple, SingleYear_Har_Invest, DoubleYear_Har_Invest, TripleYear_Har_Invest
 from PySources.base import Base, pd, np, calculate_formula, calculate_formula_v2, convert_strF_to_arrF
 
 
