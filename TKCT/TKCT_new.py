@@ -359,13 +359,14 @@ def filter(vis: Base,
     threshold = total * rate
     list_save = []
     cursor.execute(f"SELECT * FROM T{NAM_ID} ORDER BY {critical_col} ASC;")
-    with tqdm(total=num_rows) as pbar:
+    # with tqdm(total=num_rows) as pbar:
+    if True:
         for i in range(num_rows):
             temp = cursor.fetchone()
             ct = temp[1]
             info = get_info_invest(vis, ct, eval_method, temp_1, exclude_threshold)
             if info is None:
-                pbar.update(1)
+                # pbar.update(1)
                 continue
             check = True
             for k in range(len(list_save)):
@@ -374,9 +375,9 @@ def filter(vis: Base,
                     break
             if check:
                 list_save.append(info)
-                pbar.set_postfix(saved = len(list_save))
+            #     pbar.set_postfix(saved = len(list_save))
 
-            pbar.update(1)
+            # pbar.update(1)
 
     if len(list_save) > target:
         list_save_final = list_save[-target:]
