@@ -7,6 +7,7 @@ from TKCT.filter_1525 import filter_1525
 from TKCT.TkNewPrepare import filter_unique_profit_value
 from TKCT.TKCT_old import filter as filter_old
 from TKCT.TKCT_new import filter as filter_new
+from TKCT.TKCT_detail import get_dfs
 from TKCT.mergeTableDB import get_table_names
 from PySources.base import Base
 
@@ -18,7 +19,7 @@ list_db_path = [
 ]
 
 FOLDER = "/Users/nguyenhuuan/Downloads/FMLs"
-DATA_PATH = "/Users/nguyenhuuan/Desktop/VIS-FWH-Lib-2025/DATA/HOSE_Field_2025_simulate_20250401.xlsx"
+DATA_PATH = "/Users/nguyenhuuan/Desktop/VIS-FWH-Lib-2025/DATA/HOSE_Field_2025_NoAudited.xlsx"
 TARGET = 10000
 NUM_FIELD = 35
 LEVEL = 2
@@ -28,6 +29,21 @@ YEAR_MIN = 2015
 INTEREST = 1.06
 VALUEARG_THRESHOLD = 5e8
 EXCLUDE_THRESHOLD = 0.0
+
+
+def run_last_files(folder_save, critical_col, nam_id):
+    df = pd.read_excel(DATA_PATH)
+    df = df[df["TIME"] <= YEAR_MIN + nam_id]
+    vis = Base(df, INTEREST, VALUEARG_THRESHOLD)
+    with open(f"{folder_save}/{nam_id}.txt", "r") as f:
+        list_ct = f.read().splitlines()
+    if critical_col == "HarNgn1": method = "Val1"
+    elif critical_col == "HarNgn2": method = "Val2"
+    elif critical_col == "HarNgn3": method = "Val3"
+    else: raise
+    df_info, df_sum_rank = get_dfs(vis, list_ct, method, EVAL_METHOD)
+    df_info.to_csv(f"{folder_save}/{YEAR_MIN + nam_id}.csv", index=False)
+    df_sum_rank.to_csv(f"{folder_save}/SUM_RANK_{YEAR_MIN + nam_id}.csv", index=False)
 
 
 def run_task(args):
@@ -43,6 +59,7 @@ def run_task(args):
             else: folder_save += "NORM"
             os.makedirs(folder_save, exist_ok=True)
             filter_old(db_path, nam_id, TARGET, NUM_FIELD, LEVEL, folder_save, critical_col, f1525)
+            run_last_files(folder_save, critical_col, nam_id)
             return ("Success", None, args)
         except Exception as ex:
             return ("Failed", ex, args)
@@ -62,6 +79,7 @@ def run_task(args):
             df.sort_index(inplace=True)
             vis = Base(df, INTEREST, VALUEARG_THRESHOLD)
             filter_new(vis, db_path, nam_id, TARGET, RATE, folder_save, critical_col, EVAL_METHOD, EXCLUDE_THRESHOLD)
+            run_last_files(folder_save, critical_col, nam_id)
             return ("Success", None, args)
         except Exception as ex:
             return ("Failed", ex, args)
