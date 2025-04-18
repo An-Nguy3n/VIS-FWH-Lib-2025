@@ -56,7 +56,10 @@ def run_task(args):
             else: folder_save += "NORM"
             os.makedirs(folder_save, exist_ok=True)
             df = pd.read_excel(DATA_PATH)
-            df = df[df["TIME"] <= YEAR_MIN + nam_id]
+            df = df[df["TIME"] < YEAR_MIN + nam_id].reset_index(drop=True)
+            df.index += 1
+            df.loc[0] = {"TIME": YEAR_MIN + nam_id, "SYMBOL": "_NULL_", "EXCHANGE": "_NULL_"}
+            df.sort_index(inplace=True)
             vis = Base(df, INTEREST, VALUEARG_THRESHOLD)
             filter_new(vis, db_path, nam_id, TARGET, RATE, folder_save, critical_col, EVAL_METHOD, EXCLUDE_THRESHOLD)
             return ("Success", None, args)
